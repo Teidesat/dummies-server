@@ -1,0 +1,20 @@
+networks:
+    dummies-network:
+        external: true
+
+services:
+    transmitter-server:
+        image: dummies-server:latest
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: transmitter-server
+        hostname: transmitter-server
+        networks:
+            - dummies-network
+        ports:
+            - "5000:5000"
+        volumes:
+            - .:/app
+        working_dir: /app/transmitter
+        command: python3 transmitter-server.py
