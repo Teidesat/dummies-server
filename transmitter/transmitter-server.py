@@ -62,7 +62,7 @@ def send_message():
     return {}
 
 
-@app.route("/get_message", methods=["GET"])
+@app.route("/get_message_data", methods=["GET"])
 def get_message():
     """
     Function to send the message to the transmitter ESP32.
