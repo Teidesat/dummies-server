@@ -3,6 +3,21 @@ networks:
         external: true
 
 services:
+    receiver-server:
+        image: dummies-server:latest
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: receiver-server
+        hostname: receiver-server
+        networks:
+            - dummies-network
+        ports:
+            - "5000:5000"
+        volumes:
+            - .:/app
+        working_dir: /app/receiver
+        command: python3 receiver-server.py       
     transmitter-server:
         image: dummies-server:latest
         build:
