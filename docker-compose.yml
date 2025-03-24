@@ -13,11 +13,11 @@ services:
         networks:
             - dummies-network
         ports:
-            - "5000:5000"
+            - "5001:5001"
         volumes:
             - .:/app
         working_dir: /app/receiver
-        command: python3 receiver-server.py       
+        command: python3 -u receiver-server.py       
     transmitter-server:
         image: dummies-server:latest
         build:
@@ -32,4 +32,4 @@ services:
         volumes:
             - .:/app
         working_dir: /app/transmitter
-        command: python3 transmitter-server.py
+        command: python3 -u transmitter-server.py

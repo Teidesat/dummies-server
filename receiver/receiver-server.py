@@ -6,7 +6,7 @@ Program to handle the communication between the receiver's GUI and the receiver'
 """
 
 from flask import Flask, request, jsonify
-
+from exp_buffer import ExperimentBuffer
 
 # Set the debug mode to True to print logs in the console
 DEBUG_MODE = True
@@ -26,14 +26,7 @@ settings = {
 }
 
 # Buffer with the formed experiments. Each element is a tuple with the experiment ID and array of id and message
-EXP_BUFFER = [
-    ("CO_D100-A45-I3-F60-L1-Mm", [
-        ["1", "hello"],
-        ["2", "teidesat"],
-        ["3", "cubesat"],
-        ["4", "hyperspace"]
-    ])
-]
+EXP_BUFFER = ExperimentBuffer()
 
 @app.route("/")
 def hello_world():
@@ -47,25 +40,28 @@ def receive_data():
 
     TODO: Implement using the firmware.
     """
-    EXP_BUFFER.append(("CO_D100-A45-I3-F60-L1-Mm", [
-        ["1", "hello"],
-        ["2", "teidesat"],
-        ["3", "cubesat"],
-        ["4", "hyperspace"]
-    ]))
+    data = request.json
+    message = data["message"]
+    experiment_id = data["experiment_id"]
+
+    EXP_BUFFER.push(experiment_id, message)
+
+    return "OK", 200
 
 @app.route("/experiment", methods=["GET"])
 def get_experiment():
     """
     Returns an experiment, removing it from the experiments' buffer.
     """
-    exp = EXP_BUFFER[0]
-    #EXP_BUFFER = EXP_BUFFER[1:]
+    if EXP_BUFFER.size() == 0:
+        return ""
+    exp = EXP_BUFFER.pop()
+    print(exp)
     data = {
-        "id": exp[0],
+        "id": exp[0] + "Mm",
         "messages": exp[1]
     }
     return jsonify(data)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=DEBUG_MODE)
+    app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)

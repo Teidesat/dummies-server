@@ -7,7 +7,7 @@ Program to handle the communication between the transmitter's GUI and the transm
 
 
 from flask import Flask, request
-
+from requests import post as post_request
 
 # Set the debug mode to True to print logs in the console
 DEBUG_MODE = True
@@ -58,6 +58,9 @@ def send_message():
             + f"with message '{message}' and settings '{settings}'",
             flush=DEBUG_MODE,
         )
+        post_request("http://receiver-server:5001/send_data",
+            headers={"Content-Type": "application/json"},
+            json=data)
 
     return {}
 
