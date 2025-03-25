@@ -10,6 +10,7 @@ class ExperimentBuffer:
     # Used to mantain a FIFO ordering
     self.__experiment_ids__ = []
     # Associating ID without message tag with their respective messages in __messages__
+    # Messages are a tuple of the message specific id and the message itself
     self.__messages__ = {}
 
   def push(self, experiment_id: str, message: str):
@@ -34,6 +35,20 @@ class ExperimentBuffer:
     self.__experiment_ids__ = self.__experiment_ids__[1:]
     return id, messages
     
+  def pop_message(self) -> str:
+    """
+    Removes and returns a message from the next experiment to pop.
+    If after removal the experiment has no messages left, the experiment is removed from the buffer.
+    """
+    if len(self.__experiment_ids__) == 0:
+      raise "Error: Can't pop buffer if it is empty!"
+    id = self.__experiment_ids__[0]
+    message = self.__messages__[id][0][1]
+    self.__messages__[id] = self.__messages__[id][1:]
+    if len(self.__messages__[id]) == 0:
+      self.__messages__.pop(id)
+      self.__experiment_ids__ = self.__experiment_ids__[1:]
+    return message
 
   def size(self) -> int:
     """

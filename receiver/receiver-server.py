@@ -41,6 +41,7 @@ def receive_data():
     TODO: Implement using the firmware.
     """
     data = request.json
+    global message
     message = data["message"]
     experiment_id = data["experiment_id"]
 
@@ -62,6 +63,19 @@ def get_experiment():
         "messages": exp[1]
     }
     return jsonify(data)
+
+@app.route("/message", methods=["GET"])
+def get_message():
+    """
+    Returns a single message
+    """
+    # Alternative, get a single message from the experiments' buffer next experiment
+    #if request.method == "GET"
+    #   if EXP_BUFFER.size() == 0:
+    #       return ""
+    #   return EXP_BUFFER.pop_message()
+    if request.method == "GET":
+        return message
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
