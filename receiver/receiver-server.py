@@ -64,6 +64,15 @@ def get_experiment():
     }
     return jsonify(data)
 
+@app.route("/buffer_size", methods=["GET"])
+def get_buffer_size():
+    """
+    Returns size of the experiment buffer.
+    """
+    print(f"Buffer size: {EXP_BUFFER.size()}")
+    
+    return str(EXP_BUFFER.size())
+
 @app.route("/message", methods=["GET"])
 def get_message():
     """
