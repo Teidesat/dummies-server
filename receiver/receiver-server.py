@@ -4,9 +4,11 @@
 Program to handle the communication between the receiver's GUI and the receiver's
  firmware by using a simple HTTP API server during the optical communications test.
 """
+from threading import Timer
 
 from flask import Flask, request, jsonify
-from exp_buffer import ExperimentBuffer
+from experiment import Experiment
+from utils import addExperimentToBuffer, TimeOutWrapper
 
 # Set the debug mode to True to print logs in the console
 DEBUG_MODE = True
@@ -25,8 +27,16 @@ settings = {
     "messages_batch": 0,
 }
 
-# Buffer with the formed experiments. Each element is a tuple with the experiment ID and array of id and message
-EXP_BUFFER = ExperimentBuffer()
+# Buffer with the formed experiments.
+EXP_BUFFER: list[Experiment] = []
+
+# The experiment that is currently forming.
+FORMING_EXPERIMENT: Experiment = Experiment(None)
+
+# Timeout to form experiments
+TIMEOUT = 3
+LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
+TIMED_OUT: TimeOutWrapper =  TimeOutWrapper(False)
 
 @app.route("/")
 def hello_world():
@@ -42,10 +52,36 @@ def receive_data():
     """
     data = request.json
     global message
+    global FORMING_EXPERIMENT
+    global LAST_EXPERIMENT_TIMER
+    global TIMED_OUT
     message = data["message"]
     experiment_id = data["experiment_id"]
+    stripped_experiment_id = experiment_id[:experiment_id.find("M")]
+    print(data)
+    if FORMING_EXPERIMENT.id is None: # First run
+        print("First run")
+        FORMING_EXPERIMENT = Experiment(stripped_experiment_id)
+    elif FORMING_EXPERIMENT.hasMessage(experiment_id) or FORMING_EXPERIMENT.id != stripped_experiment_id or TIMED_OUT.timeout:
+        # 3 cases on which a experiment has fully formed: 
+        # 1. repeated ID (same experiment back to back),
+        # 2. different experiment ID (different experiments)
+        # 3. or no more messages (last experiment, last message).
+        print("Finished experiment " + FORMING_EXPERIMENT.id + ", now adding " + experiment_id)
+        print("TIMED_OUT " + str(TIMED_OUT.timeout))
+        print("Current and new id are equal? " + str(FORMING_EXPERIMENT.id == stripped_experiment_id))
+        print(FORMING_EXPERIMENT.messages)
+        if not TIMED_OUT.timeout: # Timeout handler already adds to the buffer
+            EXP_BUFFER.append(FORMING_EXPERIMENT)
+        TIMED_OUT.timeout = False
+        FORMING_EXPERIMENT = Experiment(stripped_experiment_id)
+    else:
+        print("Same experiment " + experiment_id)
 
-    EXP_BUFFER.push(experiment_id, message)
+    FORMING_EXPERIMENT.addMessage(experiment_id, message)
+    LAST_EXPERIMENT_TIMER.cancel()
+    LAST_EXPERIMENT_TIMER = Timer(TIMEOUT, addExperimentToBuffer, (EXP_BUFFER, FORMING_EXPERIMENT, TIMED_OUT))
+    LAST_EXPERIMENT_TIMER.start()
 
     return "OK", 200
 
@@ -54,14 +90,16 @@ def get_experiment():
     """
     Returns an experiment, removing it from the experiments' buffer.
     """
-    if EXP_BUFFER.size() == 0:
+    global EXP_BUFFER
+    if len(EXP_BUFFER) == 0:
         return ""
-    exp = EXP_BUFFER.pop()
-    print(exp)
-    data = {
-        "id": exp[0] + "Mm",
-        "messages": exp[1]
-    }
+    exp = EXP_BUFFER[0]
+    if len(EXP_BUFFER) > 1:
+        EXP_BUFFER = EXP_BUFFER[1:]
+    else:
+        EXP_BUFFER = []
+    data = exp.toDict()
+    print(data)
     return jsonify(data)
 
 @app.route("/message", methods=["GET"])
@@ -69,11 +107,6 @@ def get_message():
     """
     Returns a single message
     """
-    # Alternative, get a single message from the experiments' buffer next experiment
-    #if request.method == "GET"
-    #   if EXP_BUFFER.size() == 0:
-    #       return ""
-    #   return EXP_BUFFER.pop_message()
     if request.method == "GET":
         return message
 
