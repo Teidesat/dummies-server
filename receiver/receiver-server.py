@@ -44,19 +44,10 @@ TIMEOUT = 3
 LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
 TIMED_OUT: TimeOutWrapper =  TimeOutWrapper(False)
 
-@app.route("/")
-def hello_world():
-    return "<p>Hello world from the receiver server!</p>"
-
-
-@app.route("/send_data", methods=["POST"])
-def receive_data():
+def process_message(data):
     """
-    Receives the data from the firmware and processes it to form a message/experiment. Adds it to the buffer for the experiments
-
-    TODO: Implement using the firmware.
+    Function to process the message received from the firmware and add it to the buffer.
     """
-    data = request.json
     global message
     global FORMING_EXPERIMENT
     global LAST_EXPERIMENT_TIMER
@@ -89,6 +80,20 @@ def receive_data():
     LAST_EXPERIMENT_TIMER = Timer(TIMEOUT, addExperimentToBuffer, (EXP_BUFFER, FORMING_EXPERIMENT, TIMED_OUT))
     LAST_EXPERIMENT_TIMER.start()
 
+@app.route("/")
+def hello_world():
+    return "<p>Hello world from the receiver server!</p>"
+
+
+@app.route("/send_data", methods=["POST"])
+def receive_data():
+    """
+    Receives the data from the firmware and processes it to form a message/experiment. Adds it to the buffer for the experiments
+
+    TODO: Implement using the firmware.
+    """
+    data = request.json
+    process_message(data)
     return "OK", 200
 
 @app.route("/receive_binary", methods=["POST"])
@@ -116,10 +121,11 @@ def receive_binary():
         TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
         if TAIL_IND != -1:
             # Process the binary data into json and send it to the receiver
-            receive_data(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
+            process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
             BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
             SEARCHING_FOR_HEAD = True
     return "OK", 200
+
 
 @app.route("/experiment", methods=["GET"])
 def get_experiment():
