@@ -107,9 +107,9 @@ def get_buffer_size():
     """
     Returns size of the experiment buffer.
     """
-    print(f"Buffer size: {EXP_BUFFER.size()}")
+    print(f"Buffer size: {len(EXP_BUFFER)}")
     
-    return str(EXP_BUFFER.size())
+    return str(len(EXP_BUFFER))
 
 @app.route("/message", methods=["GET"])
 def get_message():
