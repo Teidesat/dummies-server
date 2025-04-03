@@ -8,7 +8,9 @@ from threading import Timer
 
 from flask import Flask, request, jsonify
 from experiment import Experiment
-from utils import addExperimentToBuffer, TimeOutWrapper
+from utils import *
+
+import Levenshtein
 
 # Set the debug mode to True to print logs in the console
 DEBUG_MODE = True
@@ -26,6 +28,10 @@ settings = {
     "blinking_frequency": 0,
     "messages_batch": 0,
 }
+
+# Temporary buffer for the binary data
+BINARY_TEMP = b""
+SEARCHING_FOR_HEAD = True
 
 # Buffer with the formed experiments.
 EXP_BUFFER: list[Experiment] = []
@@ -85,6 +91,36 @@ def receive_data():
 
     return "OK", 200
 
+@app.route("/receive_binary", methods=["POST"])
+def receive_binary():
+    """
+    Receives the binary data from the firmware and processes it to form a message/experiment. Adds it to the buffer for the experiments
+    """
+    header = b"TEIDESAT"
+    tail = b"TASEDIET"
+    tolerance = 5
+    global BINARY_TEMP
+    global SEARCHING_FOR_HEAD
+    data = request.get_data(as_text=False)
+    print("binary", data.hex())
+    print("ascii", data.decode("ascii"))
+    BINARY_TEMP = BINARY_TEMP + data
+    
+    if SEARCHING_FOR_HEAD:
+        HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
+        if HEADER_IND != -1:
+            # Discard previous bytes
+            BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
+            SEARCHING_FOR_HEAD = False
+    if not SEARCHING_FOR_HEAD:
+        TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
+        if TAIL_IND != -1:
+            # Process the binary data into json and send it to the receiver
+            receive_data(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
+            BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
+            SEARCHING_FOR_HEAD = True
+    return "OK", 200
+
 @app.route("/experiment", methods=["GET"])
 def get_experiment():
     """
@@ -121,3 +157,5 @@ def get_message():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
+
+

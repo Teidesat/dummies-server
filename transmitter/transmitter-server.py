@@ -4,7 +4,7 @@
 Program to handle the communication between the transmitter's GUI and the transmitter's
  firmware by using a simple HTTP API server during the optical communications test.
 """
-
+import json
 
 from flask import Flask, request
 from requests import post as post_request
@@ -58,10 +58,12 @@ def send_message():
             + f"with message '{message}' and settings '{settings}'",
             flush=DEBUG_MODE,
         )
-        post_request("http://receiver-server:5001/send_data",
-            headers={"Content-Type": "application/json"},
-            json=data)
-
+        #post_request("http://receiver-server:5001/send_data",
+         #   headers={"Content-Type": "application/json"},
+          #  json=data)
+        byte_json = json.dumps(data)
+        post_request("http://receiver-server:5001/receive_binary",
+                     data=b"TEIDESAT" + byte_json.encode() + b"TASEDIET", headers={"Content-Type": "application/octet-stream"})
     return {}
 
 
