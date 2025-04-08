@@ -110,20 +110,25 @@ def receive_binary():
     print("binary", data.hex())
     print("ascii", data.decode("ascii"))
     BINARY_TEMP = BINARY_TEMP + data
-    
-    if SEARCHING_FOR_HEAD:
-        HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
-        if HEADER_IND != -1:
-            # Discard previous bytes
-            BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
-            SEARCHING_FOR_HEAD = False
-    if not SEARCHING_FOR_HEAD:
-        TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
-        if TAIL_IND != -1:
-            # Process the binary data into json and send it to the receiver
-            process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
-            BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
-            SEARCHING_FOR_HEAD = True
+    checksum = calculate_checksum(data)
+    if checksum != 0:
+        print(f"Found error in checksum {checksum} for package ", data)
+    HEADER_IND = None
+    TAIL_IND = None
+    while HEADER_IND != -1 and TAIL_IND != -1:
+        if SEARCHING_FOR_HEAD:
+            HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
+            if HEADER_IND != -1:
+                # Discard previous bytes
+                BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
+                SEARCHING_FOR_HEAD = False
+        if not SEARCHING_FOR_HEAD:
+            TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
+            if TAIL_IND != -1:
+                # Process the binary data into json and send it to the receiver
+                process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
+                BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
+                SEARCHING_FOR_HEAD = True
     return "OK", 200
 
 
