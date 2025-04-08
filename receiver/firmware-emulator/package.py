@@ -4,7 +4,7 @@ from requests import post as post_request
 ENDPOINT = "http://127.0.0.1:5001/receive_binary"
 
 class Package:
-  PACKAGE_SIZE = 4096
+  PACKAGE_SIZE = 2048
   STR_LENGTH = 80
 
   def __init__(self):
@@ -14,7 +14,15 @@ class Package:
   def send(self):
     diff = self.get_empty_space()
     bytes_to_send = self.bytes if diff == 0 else self.bytes + b"0" * diff
-    post_request(ENDPOINT, data=bytes_to_send, headers={"Content-Type": "application/octet-stream"})
+    def calculate_checksum(byte_sequence: bytes):
+      # Perform 16 bits XOR checksum and return as integer
+      checksum = 0
+      for ind in range(0, len(byte_sequence), 2):
+        byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
+        checksum ^= byte
+      return checksum
+    checksum = int.to_bytes(calculate_checksum(bytes_to_send), 2, "big") # 16 bits
+    post_request(ENDPOINT, data=bytes_to_send + checksum, headers={"Content-Type": "application/octet-stream"})
 
   def add_bytes(self, bytes_to_add: bytes, tag: str):
     """
