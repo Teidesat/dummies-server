@@ -108,7 +108,7 @@ def receive_binary():
     global SEARCHING_FOR_HEAD
     data = request.get_data(as_text=False)
     print("binary", data.hex())
-    print("ascii", data.decode("ascii"))
+    print("ascii", data.decode("ascii", errors="replace"))
     BINARY_TEMP = BINARY_TEMP + data
     
     if SEARCHING_FOR_HEAD:
@@ -117,6 +117,7 @@ def receive_binary():
             # Discard previous bytes
             BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
             SEARCHING_FOR_HEAD = False
+            print("found head")
     if not SEARCHING_FOR_HEAD:
         TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
         if TAIL_IND != -1:
@@ -149,7 +150,7 @@ def get_buffer_size():
     """
     Returns size of the experiment buffer.
     """
-    print(f"Buffer size: {len(EXP_BUFFER)}")
+    #print(f"Buffer size: {len(EXP_BUFFER)}")
     
     return str(len(EXP_BUFFER))
 

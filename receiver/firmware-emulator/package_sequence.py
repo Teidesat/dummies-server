@@ -1,4 +1,6 @@
 from package import Package
+import re
+import random
 
 class PackageSequence:
   def __init__(self):
@@ -16,7 +18,7 @@ class PackageSequence:
       bytes_to_add = self.packages[-1].add_bytes(bytes_to_add, tag)
       if self.packages[-1].get_empty_space() == 0:
         self.packages.append(Package())
-
+     
   def send(self):
     for package in self.packages:
       package.send()

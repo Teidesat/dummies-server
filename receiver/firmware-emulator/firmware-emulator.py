@@ -4,6 +4,7 @@ Program to emulate the messages sent from the receiver's firmware.
 import sys
 import os
 from package_sequence import PackageSequence
+import random
 
 def main():
   sequence = PackageSequence()
@@ -21,6 +22,7 @@ def main():
       sequence.send()
     elif option == "5":
       show_help_message()
+      
 
 def add_message(sequence: PackageSequence):
   path = input("Write the path to the message to add: ")
@@ -29,12 +31,41 @@ def add_message(sequence: PackageSequence):
     return
   with open(path, "rb") as fp:
     message = fp.read()
-  message_with_header_tail = b"TEIDESAT" + message + b"TASEDIET" 
+  header = b"TEIDESAT"
+  tail = b"TASEDIET"
+  message_with_header_tail = random_modify(header) + message + random_modify(tail) 
   print(f"The message's size is {len(message)} bytes, {len(message_with_header_tail)} bytes with header/tail")
   sequence.add_message(message_with_header_tail)
 
+def random_modify(string: bytes) -> bytes:
+    """
+    Randomly modifies a string by changing up to 5 random characters to random values.
+    """
+    num_mutations = 3
+
+    if len(string) == 0:
+        return string
+
+    # 1-in-3 chance to mutate
+    if True:
+        string_array = bytearray(string)  # make mutable
+        mutation_indices = random.sample(range(len(string_array)), min(num_mutations, len(string_array)))
+
+        for idx in mutation_indices:
+            original_byte = string_array[idx]
+            new_byte = random.randint(0, 255)
+            while new_byte == original_byte:
+                new_byte = random.randint(0, 255)
+            string_array[idx] = new_byte
+
+        return bytes(string_array)
+    else:
+        return string
+
+
+
 def add_noise(sequence: PackageSequence):
-  num_bytes = input("Write how many noise bytes are you adding: ")
+  num_bytes = input("Write how many padding bytes are you adding: ")
   error = False
   try:
     num_bytes = int(num_bytes)
@@ -48,7 +79,7 @@ def add_noise(sequence: PackageSequence):
 def show_menu():
   print("0) Exit")
   print("1) Add message")
-  print("2) Add noise")
+  print("2) Add padding")
   print("3) Show current packages to send")
   print("4) Send current packages")
   print("5) Help")
