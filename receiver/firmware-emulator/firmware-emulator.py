@@ -41,13 +41,13 @@ def random_modify(string: bytes) -> bytes:
     """
     Randomly modifies a string by changing up to 5 random characters to random values.
     """
-    num_mutations = 3
+    num_mutations = random.randint(1, 5)  # Random number of mutations between 1 and 5
 
     if len(string) == 0:
         return string
 
     # 1-in-3 chance to mutate
-    if True:
+    if random.randint(1, 3) % 3 == 0:
         string_array = bytearray(string)  # make mutable
         mutation_indices = random.sample(range(len(string_array)), min(num_mutations, len(string_array)))
 
