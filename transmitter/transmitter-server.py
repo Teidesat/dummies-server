@@ -26,6 +26,8 @@ settings = {
     "messages_batch": 0,
 }
 
+MESSAGES = []
+FREQUENCIES = []
 
 @app.route("/")
 def hello_world():
@@ -61,9 +63,14 @@ def send_message():
         #post_request("http://receiver-server:5001/send_data",
          #   headers={"Content-Type": "application/json"},
           #  json=data)
-        byte_json = json.dumps(data)
-        post_request("http://receiver-server:5001/receive_binary",
-                     data=b"TEIDESAT" + byte_json.encode() + b"TASEDIET", headers={"Content-Type": "application/octet-stream"})
+        byte_json = json.dumps(data).encode()
+        bytes_message = b"TEIDESAT" + byte_json + b"TASEDIET"
+        global MESSAGES
+        global FREQUENCIES
+        MESSAGES.append(bytes_message)
+        FREQUENCIES.append(data["settings"]["blinking_frequency"])
+        #post_request("http://receiver-server:5001/receive_binary",
+        #             data=b"TEIDESAT" + byte_json.encode() + b"TASEDIET", headers={"Content-Type": "application/octet-stream"})
     return {}
 
 
@@ -77,8 +84,11 @@ def get_message():
     """
 
     if request.method == "GET":
-        global message
-
+        global MESSAGES
+        if len(MESSAGES) == 0:
+            print("No message ready", flush=DEBUG_MODE)
+            return ""
+        message = MESSAGES.pop(0)
         print(f"Sending message: {message}", flush=DEBUG_MODE)
         return message
 
@@ -152,9 +162,11 @@ def get_blinking_frequency():
     """
 
     if request.method == "GET":
-        global settings
-        frequency = settings["blinking_frequency"]
-
+        global FREQUENCIES
+        if len(FREQUENCIES) == 0:
+            print("No blinking frequency ready")
+            return ""
+        frequency = FREQUENCIES.pop(0)
         print(f"Sending blinking frequency value: {frequency}", flush=DEBUG_MODE)
         return str(frequency)
 
