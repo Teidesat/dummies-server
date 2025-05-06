@@ -24,7 +24,7 @@ class Package:
       return checksum
     checksum = int.to_bytes(calculate_checksum(bytes_to_send), 2, "big") # 16 bits
     ba = bitarray()
-    ba.frombytes(byte_data)
+    ba.frombytes(bytes_to_send)
     print("bytes_to_send", bytes_to_send)
     post_request(ENDPOINT, data=bytes_to_send + checksum, headers={"Content-Type": "application/octet-stream"})
 
