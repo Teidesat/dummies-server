@@ -1,3 +1,4 @@
 flask==3.1.0
 requests==2.32.3
 Levenshtein
+bitarray==3.3.2
