@@ -107,8 +107,13 @@ def receive_binary():
     global BINARY_TEMP
     global SEARCHING_FOR_HEAD
     data = request.get_data(as_text=False)
+    #print("Received data", data)
+    print("Received data length", len(data))
+    denoise_message(data, header, tail)
+    print(data)
     print("binary", data.hex())
     print("ascii", data.decode("ascii", errors="replace"))
+    #data = reduce_binary(data)
     BINARY_TEMP = BINARY_TEMP + data
     checksum = calculate_checksum(data)
     if checksum != 0:

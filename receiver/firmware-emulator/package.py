@@ -1,4 +1,5 @@
 from requests import post as post_request
+from bitarray import bitarray
 
 #ENDPOINT = "http://receiver-server:5001/receive_binary"
 ENDPOINT = "http://127.0.0.1:5001/receive_binary"
@@ -22,6 +23,9 @@ class Package:
         checksum ^= byte
       return checksum
     checksum = int.to_bytes(calculate_checksum(bytes_to_send), 2, "big") # 16 bits
+    ba = bitarray()
+    ba.frombytes(byte_data)
+    print("bytes_to_send", bytes_to_send)
     post_request(ENDPOINT, data=bytes_to_send + checksum, headers={"Content-Type": "application/octet-stream"})
 
   def add_bytes(self, bytes_to_add: bytes, tag: str):

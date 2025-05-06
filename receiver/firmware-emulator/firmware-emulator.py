@@ -5,6 +5,7 @@ import sys
 import os
 from package_sequence import PackageSequence
 import random
+from bitarray import bitarray
 
 def main():
   sequence = PackageSequence()
@@ -19,10 +20,29 @@ def main():
     elif option == "3":
       print(sequence)
     elif option == "4":
+      print("Sending packages...")
+      print(sys.getsizeof(sequence), "packages to send")
+      print(sys.getsizeof(sequence.packages), "packages")
       sequence.send()
     elif option == "5":
       show_help_message()
       
+def oversample(signal: bitarray, factor: int) -> bitarray:
+    """
+    Oversample the bits of the signal by the given factor
+    """
+    oversampled = bitarray()
+    for bit in signal:
+        for i in range(factor):
+            oversampled.append(bit)
+            
+    return oversampled
+
+def bits_from_bytes(byte_data):
+    """Convert bytes to bitarray."""
+    ba = bitarray()
+    ba.frombytes(byte_data)
+    return ba
 
 def add_message(sequence: PackageSequence):
   path = input("Write the path to the message to add: ")
@@ -31,9 +51,10 @@ def add_message(sequence: PackageSequence):
     return
   with open(path, "rb") as fp:
     message = fp.read()
-  header = b"TEIDESAT"
-  tail = b"TASEDIET"
-  message_with_header_tail = random_modify(header) + message + random_modify(tail) 
+  header = bits_from_bytes(b"TEIDESAT")
+  tail = bits_from_bytes(b"TASEDIET")
+  message = bits_from_bytes(message)
+  message_with_header_tail = oversample(header + message + tail, 5) 
   print(f"The message's size is {len(message)} bytes, {len(message_with_header_tail)} bytes with header/tail")
   sequence.add_message(message_with_header_tail)
 

@@ -1,1 +1,1 @@
-{"experiment_id": "CO_D5.0-A10.0-I0.5-F30.0-L1.0-Mm", "message": "01001000011011110110110001100001", "settings": {"dummy_distance": 3.0, "transmitter_angle": 0.0, "led_intensity": 0.5, "blinking_frequency": 30.0, "messages_batch": 1.0}}
+{"experiment_id": "CO_D5.0-A10.0-I0.5-F30.0-L1.0-Mm", "message": "0100100001101111011011000110000100100000011100000110111101110100011000010111010001101111", "settings": {"dummy_distance": 3.0, "transmitter_angle": 0.0, "led_intensity": 0.5, "blinking_frequency": 30.0, "messages_batch": 1.0}}
