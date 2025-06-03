@@ -44,6 +44,11 @@ TIMEOUT = 3
 LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
 TIMED_OUT: TimeOutWrapper =  TimeOutWrapper(False)
 
+# Variables to tell if we found header or tail to decode the oversampling
+FOUND_HEADER = False
+OVERSAMPLING = -1
+LEFTOVER = None
+
 def process_message(data):
     """
     Function to process the message received from the firmware and add it to the buffer.
@@ -106,24 +111,38 @@ def receive_binary():
     tolerance = 5
     global BINARY_TEMP
     global SEARCHING_FOR_HEAD
-    data = request.get_data(as_text=False)
-    print("binary", data.hex())
-    print("ascii", data.decode("ascii"))
-    BINARY_TEMP = BINARY_TEMP + data
+    global FOUND_HEADER
+    global OVERSAMPLING
+    global LEFTOVER
     
-    if SEARCHING_FOR_HEAD:
-        HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
-        if HEADER_IND != -1:
-            # Discard previous bytes
-            BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
-            SEARCHING_FOR_HEAD = False
-    if not SEARCHING_FOR_HEAD:
-        TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
-        if TAIL_IND != -1:
-            # Process the binary data into json and send it to the receiver
-            process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
-            BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
-            SEARCHING_FOR_HEAD = True
+    data = request.get_data(as_text=False)
+    if LEFTOVER is not None:
+        data = LEFTOVER + data
+        LEFTOVER = None
+    print("Received data length", type(data))
+    data, OVERSAMPLING, FOUND_HEADER, LEFTOVER = denoise_message(data, header, tail, OVERSAMPLING, FOUND_HEADER)
+    print("binary", data.hex())
+    print("ascii", data.decode("ascii", errors="replace"))
+    BINARY_TEMP = BINARY_TEMP + data
+    checksum = calculate_checksum(data)
+    if checksum != 0:
+        print(f"Found error in checksum {checksum} for package ", data)
+    HEADER_IND = None
+    TAIL_IND = None
+    while HEADER_IND != -1 and TAIL_IND != -1:
+        if SEARCHING_FOR_HEAD:
+            HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
+            if HEADER_IND != -1:
+                # Discard previous bytes
+                BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
+                SEARCHING_FOR_HEAD = False
+        if not SEARCHING_FOR_HEAD:
+            TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
+            if TAIL_IND != -1:
+                # Process the binary data into json and send it to the receiver
+                process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
+                BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
+                SEARCHING_FOR_HEAD = True
     return "OK", 200
 
 
@@ -149,7 +168,7 @@ def get_buffer_size():
     """
     Returns size of the experiment buffer.
     """
-    print(f"Buffer size: {len(EXP_BUFFER)}")
+    #print(f"Buffer size: {len(EXP_BUFFER)}")
     
     return str(len(EXP_BUFFER))
 
