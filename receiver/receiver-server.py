@@ -44,6 +44,11 @@ TIMEOUT = 3
 LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
 TIMED_OUT: TimeOutWrapper =  TimeOutWrapper(False)
 
+# Variables to tell if we found header or tail to decode the oversampling
+FOUND_HEADER = False
+OVERSAMPLING = -1
+LEFTOVER = None
+
 def process_message(data):
     """
     Function to process the message received from the firmware and add it to the buffer.
@@ -106,14 +111,18 @@ def receive_binary():
     tolerance = 5
     global BINARY_TEMP
     global SEARCHING_FOR_HEAD
+    global FOUND_HEADER
+    global OVERSAMPLING
+    global LEFTOVER
+    
     data = request.get_data(as_text=False)
-    #print("Received data", data)
-    print("Received data length", len(data))
-    denoise_message(data, header, tail)
-    print(data)
+    if LEFTOVER is not None:
+        data = LEFTOVER + data
+        LEFTOVER = None
+    print("Received data length", type(data))
+    data, OVERSAMPLING, FOUND_HEADER, LEFTOVER = denoise_message(data, header, tail, OVERSAMPLING, FOUND_HEADER)
     print("binary", data.hex())
     print("ascii", data.decode("ascii", errors="replace"))
-    #data = reduce_binary(data)
     BINARY_TEMP = BINARY_TEMP + data
     checksum = calculate_checksum(data)
     if checksum != 0:

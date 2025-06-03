@@ -114,25 +114,28 @@ def generate_variants(header_bits, max_flips=1):
     return [bitarray(v) for v in variants]
 
 
-def denoise_oversampled(signal, start_idx, bit_len, num_bits):
+def denoise_oversampled(message, offset, oversampling, bits_after_header):
     """Apply majority voting from a start index over the bit length."""
-    print("signal length", len(signal))
-    print("signal", type(signal))
-    print("start_idx", start_idx)
-    print("bit_len", bit_len)
-    print("num_bits", num_bits)
+    print("signal length", len(message))
+    print("signal", type(message))
+    print("start_idx", offset)
+    print("bit_len", oversampling)
+    print("num_bits", bits_after_header)
     output_bits = bitarray()
     counter = 0
     size = -1
-    for i in range(num_bits):
+    for i in range(bits_after_header):
         counter += 1
-        bit_window = signal[start_idx + i * bit_len : start_idx + (i + 1) * bit_len]
+        start = offset + i * oversampling
+        end = start + oversampling
+        bit_window = message[start:end]
         if size < len(bit_window):
             size = len(bit_window)
-        if not bit_window:
-            break
         majority = bit_window.count(1) > len(bit_window) // 2
-        output_bits.append(int(majority))
+        output_bits.append(1 if majority else 0)
+        if counter < 10:
+            print("bit_window", bit_window)
+            print("majority", majority)
     print("output_bits length", len(output_bits))
     print(counter, size)
     return output_bits
@@ -145,7 +148,7 @@ def oversample_pattern(pattern, rate):
         result.extend([bit] * rate)
     return result
 
-def generate_oversampled_header_variants(header, rates=range(2, 10)):
+def generate_oversampled_variants(header, rates):
     """Generate oversampled header variants for all rates and flips."""
     variant_dict = {}
     for r in rates:
@@ -166,41 +169,78 @@ def cross_correlate_score(signal, pattern):
             best_idx = i
     return max_score, best_idx
 
-def detect_oversampling(signal, header, rate_range=(2, 10)):
+def detect_oversampling(signal, header, rate_range):
     """Estimate oversampling rate and alignment from oversampled header."""
-    header_variants = generate_oversampled_header_variants(header, rates=range(*rate_range))
+    header_variants = generate_oversampled_variants(header, rates=range(*rate_range))
     best_score = -1
-    best_params = (None, None)  # (rate, offset)
+    best_params = (None, None, None)  # (rate, offset, score)
     print(f"variants: {len(header_variants)}")
     for rate, patterns in header_variants.items():
         for pattern in patterns:
             score, idx = cross_correlate_score(signal, pattern)
             print(f"Rate: {rate}, Score: {score}, Index: {idx}")
-            if score > best_score and (len(signal) - idx) % rate == 0:  # Ensure it's a significant match
+            if score > best_score:  # Ensure it's a significant match
                 best_score = score
-                best_params = (rate, idx)
+                best_params = (rate, idx, best_score)
                 #print(f"New best score: {best_score}, Rate: {rate}, Offset: {idx}")
 
-    return best_params  # oversampling, offset
+    return best_params  # oversampling, offset, score
   
-def denoise_message(message, header, tail):
-    print("Message length:", len(message))
+def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: int, header_status: bool):\
+    # Check to exit the recursive function, if the message is too small the header may be segmented
+    if len(message) < 100:
+        return bitarray(), header, tail, -1, False, message
+    
+    
     if type(message) == bytes:
         message = bits_from_bytes(message)
     if type(header) == bytes:
         header = bits_from_bytes(header)
     if type(tail) == bytes:
         tail = bits_from_bytes(tail)
-    print("Message length:", len(message))
-    print("Received message:", message)
-    print("Header:", header)
-    print("Tail:", tail)
-    oversampling, offset = detect_oversampling(message, header, rate_range=(2, 10))
-    bits_after_header = (len(message) - offset) / oversampling
-    print(f"Bits after header: {bits_after_header}")
-    denoised = denoise_oversampled(message, offset, oversampling, int(bits_after_header))
+    bits_after_header = -1
+    # Case when we don't know the oversampling rate
+    if oversampling < 0:
+        oversampling, offset, _ = detect_oversampling(message, header, rate_range=(2, 10))
+        bits_after_header = (len(message) - offset) // oversampling
+        header_status = True
+    # If we have found a header, we check for a tail
+    if header_status:
+        score = -1
+        _, tail_start, score = detect_oversampling(message, tail, oversampling)
+        bits_before_tail = -1
+        # If we have found a tail, we know the message is complete, we calculate the amount of bits before the tail
+        # We check for a high score to ensure we have a valid tail
+        if score > 1.5:
+            header_status = False
+            # This value will just be from the beginning of the message to the tail start
+            bits_before_tail = tail_start // oversampling
+    # We have a few different cases, header and tail in message, only header in message, only tail in message, no header or tail in message
+    if bits_after_header < 0 and bits_before_tail < 0:
+        # No header or tail
+        denoised = denoise_oversampled(message, 0, oversampling, 0)
+    elif bits_before_tail > 0 and bits_after_header > 0:
+        # Both header and tail in message
+        denoised = denoise_oversampled(message, offset, oversampling, bits_before_tail - (len(message) - bits_after_header))
+    elif bits_after_header > 0: 
+        # Only header in message
+        denoised = denoise_oversampled(message, offset, oversampling, bits_after_header)
+    elif bits_before_tail > 0:
+        # Only tail in message
+        denoised = denoise_oversampled(message, 0, oversampling, bits_before_tail)
+    
+    leftover = None
+    # If we have a tail, we will return the leftover message, which is the part of the message that is not denoised
+    # There is also the case that in this package we are treating there is more than one message, so we call recursively until all is treated and return it all together to later processing
+    if len(denoised) * oversampling < len(message):
+        remaining_message = message[len(denoised) * oversampling:]
+        aux_denoised, oversampling, header_status, leftover = denoise_message(remaining_message, header, tail, -1, False)
+        denoised = denoised.extend(aux_denoised)
+
+            
+    
     print("denoised bits:", denoised)
     denoised = ba2base(16, denoised)
     print("hex bits:", denoised)
     print("Recovered bits:", bytearray.fromhex(denoised).decode())
-    return denoised
+    return denoised, oversampling, header_status, leftover

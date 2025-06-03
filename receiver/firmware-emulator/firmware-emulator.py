@@ -34,7 +34,14 @@ def oversample(signal: bitarray, factor: int) -> bitarray:
     oversampled = bitarray()
     for bit in signal:
         for i in range(factor):
-            oversampled.append(bit)
+            random_bit = random.randint(0, 10)
+            if random_bit >= 0:
+                oversampled.append(bit)
+            else:
+                if random.randint(0, 10) > 5:
+                    oversampled.append(0)
+                else:
+                    oversampled.append(1)
             
     return oversampled
 
@@ -56,6 +63,7 @@ def add_message(sequence: PackageSequence):
   message = bits_from_bytes(message)
   message_with_header_tail = oversample(header + message + tail, 5) 
   print(f"The message's size is {len(message)} bytes, {len(message_with_header_tail)} bytes with header/tail")
+  print(message_with_header_tail)
   sequence.add_message(message_with_header_tail)
 
 def random_modify(string: bytes) -> bytes:
