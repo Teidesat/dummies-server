@@ -84,6 +84,9 @@ def get_message():
     """
 
     if request.method == "GET":
+        if SERVER_DATA.buffer.end_of_experiment:
+            SERVER_DATA.change_to_next_experiment()
+            return ""
         message = SERVER_DATA.buffer.get_message()
         if message:
             return message
@@ -162,8 +165,6 @@ def get_blinking_frequency():
     if request.method == "GET":
         frequency = SERVER_DATA.buffer.get_frequency()
         if frequency:
-            if SERVER_DATA.buffer.end_of_experiment:
-                SERVER_DATA.change_to_next_experiment()
             print("Frequency: ", frequency)
             return str(frequency)
         else:
@@ -218,7 +219,7 @@ def get_current_progress():
     # - Remaining Experiments
     return SERVER_DATA.get_status()
 
-@app.route("/next_experiment")
+@app.route("/next_experiment", methods=["GET"])
 def change_to_next_experiment():
     """
     Changes to the next experiment of the server
@@ -227,7 +228,7 @@ def change_to_next_experiment():
     # Change State of the server to "Change"
     return SERVER_DATA.change_to_next_experiment()
 
-@app.route("/stop_communication")
+@app.route("/stop_communication", methods=["GET"])
 def stop_communication():
     """
     Stops the communication with the server

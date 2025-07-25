@@ -64,7 +64,7 @@ class ExperimentBuffer:
     Returns current status in JSON format
     """
     data = {
-      "experiment_id": self.experiments[0][1],
+      "experiment_id": self.experiments[0][0],
       "experiments": len(self.experiments),
       "messages": len(self.experiments[0][2]) - self.message_ind
     }
