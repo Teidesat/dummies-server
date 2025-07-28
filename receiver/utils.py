@@ -187,7 +187,7 @@ def detect_oversampling(signal, header, rate_range):
     return best_params  # oversampling, offset, score
   
 def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: int, header_status: bool):\
-    # Check to exit the recursive function, if the message is too small the header may be segmented
+    # Check to exit the function, if the message is too small the header may be segmented
     if len(message) < 100:
         return bitarray(), header, tail, -1, False, message
     
@@ -217,15 +217,15 @@ def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: in
             bits_before_tail = tail_start // oversampling
     # We have a few different cases, header and tail in message, only header in message, only tail in message, no header or tail in message
     if bits_after_header < 0 and bits_before_tail < 0:
-        # No header or tail
+        # No header or tail, but we should have oversampling
         denoised = denoise_oversampled(message, 0, oversampling, 0)
     elif bits_before_tail > 0 and bits_after_header > 0:
         # Both header and tail in message
         denoised = denoise_oversampled(message, offset, oversampling, bits_before_tail - (len(message) - bits_after_header))
-    elif bits_after_header > 0: 
+    elif bits_after_header > 0 and bits_before_tail < 0: 
         # Only header in message
         denoised = denoise_oversampled(message, offset, oversampling, bits_after_header)
-    elif bits_before_tail > 0:
+    elif bits_before_tail > 0 and bits_after_header < 0:
         # Only tail in message
         denoised = denoise_oversampled(message, 0, oversampling, bits_before_tail)
     
