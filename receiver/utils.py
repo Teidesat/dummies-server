@@ -148,11 +148,6 @@ def denoise_oversampled(message, offset, oversampling, bits_after_header):
             size = len(bit_window)
         majority = bit_window.count(1) > len(bit_window) // 2
         output_bits.append(1 if majority else 0)
-        if counter < 10:
-            print("bit_window", bit_window)
-            print("majority", majority)
-    print("output_bits length", len(output_bits))
-    print(counter, size)
     return output_bits
 
 
