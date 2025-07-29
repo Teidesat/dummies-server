@@ -29,6 +29,7 @@ settings = {
 MESSAGES = []
 FREQUENCIES = []
 
+
 @app.route("/")
 def hello_world():
     return "<p>Hello world from the transmitter server!</p>"
@@ -60,16 +61,16 @@ def send_message():
             + f"with message '{message}' and settings '{settings}'",
             flush=DEBUG_MODE,
         )
-        #post_request("http://receiver-server:5001/send_data",
-         #   headers={"Content-Type": "application/json"},
-          #  json=data)
+        # post_request("http://receiver-server:5001/send_data",
+        #   headers={"Content-Type": "application/json"},
+        #  json=data)
         byte_json = json.dumps(data).encode()
         bytes_message = b"TEIDESAT" + byte_json + b"TASEDIET"
         global MESSAGES
         global FREQUENCIES
         MESSAGES.append(bytes_message)
         FREQUENCIES.append(data["settings"]["blinking_frequency"])
-        #post_request("http://receiver-server:5001/receive_binary",
+        # post_request("http://receiver-server:5001/receive_binary",
         #             data=b"TEIDESAT" + byte_json.encode() + b"TASEDIET", headers={"Content-Type": "application/octet-stream"})
     return {}
 
