@@ -42,12 +42,13 @@ FORMING_EXPERIMENT: Experiment = Experiment(None)
 # Timeout to form experiments
 TIMEOUT = 3
 LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
-TIMED_OUT: TimeOutWrapper =  TimeOutWrapper(False)
+TIMED_OUT: TimeOutWrapper = TimeOutWrapper(False)
 
 # Variables to tell if we found header or tail to decode the oversampling
 FOUND_HEADER = False
 OVERSAMPLING = -1
 LEFTOVER = None
+
 
 def process_message(data):
     """
@@ -59,21 +60,33 @@ def process_message(data):
     global TIMED_OUT
     message = data["message"]
     experiment_id = data["experiment_id"]
-    stripped_experiment_id = experiment_id[:experiment_id.find("M")]
+    stripped_experiment_id = experiment_id[: experiment_id.find("M")]
     print(data)
-    if FORMING_EXPERIMENT.id is None: # First run
+    if FORMING_EXPERIMENT.id is None:  # First run
         print("First run")
         FORMING_EXPERIMENT = Experiment(stripped_experiment_id)
-    elif FORMING_EXPERIMENT.hasMessage(experiment_id) or FORMING_EXPERIMENT.id != stripped_experiment_id or TIMED_OUT.timeout:
-        # 3 cases on which a experiment has fully formed: 
+    elif (
+        FORMING_EXPERIMENT.hasMessage(experiment_id)
+        or FORMING_EXPERIMENT.id != stripped_experiment_id
+        or TIMED_OUT.timeout
+    ):
+        # 3 cases on which a experiment has fully formed:
         # 1. repeated ID (same experiment back to back),
         # 2. different experiment ID (different experiments)
         # 3. or no more messages (last experiment, last message).
-        print("Finished experiment " + FORMING_EXPERIMENT.id + ", now adding " + experiment_id)
+        print(
+            "Finished experiment "
+            + FORMING_EXPERIMENT.id
+            + ", now adding "
+            + experiment_id
+        )
         print("TIMED_OUT " + str(TIMED_OUT.timeout))
-        print("Current and new id are equal? " + str(FORMING_EXPERIMENT.id == stripped_experiment_id))
+        print(
+            "Current and new id are equal? "
+            + str(FORMING_EXPERIMENT.id == stripped_experiment_id)
+        )
         print(FORMING_EXPERIMENT.messages)
-        if not TIMED_OUT.timeout: # Timeout handler already adds to the buffer
+        if not TIMED_OUT.timeout:  # Timeout handler already adds to the buffer
             EXP_BUFFER.append(FORMING_EXPERIMENT)
         TIMED_OUT.timeout = False
         FORMING_EXPERIMENT = Experiment(stripped_experiment_id)
@@ -82,8 +95,13 @@ def process_message(data):
 
     FORMING_EXPERIMENT.addMessage(experiment_id, message)
     LAST_EXPERIMENT_TIMER.cancel()
-    LAST_EXPERIMENT_TIMER = Timer(TIMEOUT, addExperimentToBuffer, (EXP_BUFFER, FORMING_EXPERIMENT, TIMED_OUT))
+    LAST_EXPERIMENT_TIMER = Timer(
+        TIMEOUT,
+        addExperimentToBuffer,
+        (EXP_BUFFER, FORMING_EXPERIMENT, TIMED_OUT),
+    )
     LAST_EXPERIMENT_TIMER.start()
+
 
 @app.route("/")
 def hello_world():
@@ -101,6 +119,7 @@ def receive_data():
     process_message(data)
     return "OK", 200
 
+
 @app.route("/receive_binary", methods=["POST"])
 def receive_binary():
     """
@@ -114,13 +133,19 @@ def receive_binary():
     global FOUND_HEADER
     global OVERSAMPLING
     global LEFTOVER
-    
+
     data = request.get_data(as_text=False)
     if LEFTOVER is not None:
         data = LEFTOVER + data
         LEFTOVER = None
     print("Received data length", type(data))
-    data, OVERSAMPLING, FOUND_HEADER, LEFTOVER = denoise_message(data, header, tail, OVERSAMPLING, FOUND_HEADER)
+    data, OVERSAMPLING, FOUND_HEADER, LEFTOVER = denoise_message(
+        data,
+        header,
+        tail,
+        OVERSAMPLING,
+        FOUND_HEADER,
+    )
     print("binary", data.hex())
     print("ascii", data.decode("ascii", errors="replace"))
     BINARY_TEMP = BINARY_TEMP + data
@@ -134,14 +159,16 @@ def receive_binary():
             HEADER_IND = find_byte_sequence(BINARY_TEMP, header, tolerance)
             if HEADER_IND != -1:
                 # Discard previous bytes
-                BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1:]
+                BINARY_TEMP = BINARY_TEMP[HEADER_IND + 1 :]
                 SEARCHING_FOR_HEAD = False
         if not SEARCHING_FOR_HEAD:
             TAIL_IND = find_byte_sequence(BINARY_TEMP, tail, tolerance)
             if TAIL_IND != -1:
                 # Process the binary data into json and send it to the receiver
-                process_message(process_binary(BINARY_TEMP[0:TAIL_IND - len(tail) + 1]))
-                BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1:]
+                process_message(
+                    process_binary(BINARY_TEMP[0 : TAIL_IND - len(tail) + 1])
+                )
+                BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1 :]
                 SEARCHING_FOR_HEAD = True
     return "OK", 200
 
@@ -163,14 +190,16 @@ def get_experiment():
     print(data)
     return jsonify(data)
 
+
 @app.route("/buffer_size", methods=["GET"])
 def get_buffer_size():
     """
     Returns size of the experiment buffer.
     """
-    #print(f"Buffer size: {len(EXP_BUFFER)}")
-    
+    # print(f"Buffer size: {len(EXP_BUFFER)}")
+
     return str(len(EXP_BUFFER))
+
 
 @app.route("/message", methods=["GET"])
 def get_message():
@@ -180,7 +209,6 @@ def get_message():
     if request.method == "GET":
         return message
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
-
-
