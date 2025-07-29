@@ -1,6 +1,7 @@
 """
 Utility functions for the receiver server on the Optical Communications Experiment
 """
+
 import Levenshtein
 import json
 from experiment import Experiment
@@ -9,20 +10,28 @@ from itertools import combinations
 from bitarray.util import ba2base, base2ba
 import random
 
-class TimeOutWrapper:
-  """
-  Simple wrapper for a bool value to be changed in the timeout function
-  """
-  def __init__(self, initialTimeout: bool):
-    self.timeout = initialTimeout
 
-def addExperimentToBuffer(buffer: list[Experiment], experiment: Experiment, timeout: TimeOutWrapper):
-  """
-  Timeout function, adds the given experiment to the buffer.
-  """
-  buffer.append(experiment)
-  timeout.timeout = True
-  
+class TimeOutWrapper:
+    """
+    Simple wrapper for a bool value to be changed in the timeout function
+    """
+
+    def __init__(self, initialTimeout: bool):
+        self.timeout = initialTimeout
+
+
+def addExperimentToBuffer(
+    buffer: list[Experiment],
+    experiment: Experiment,
+    timeout: TimeOutWrapper,
+):
+    """
+    Timeout function, adds the given experiment to the buffer.
+    """
+    buffer.append(experiment)
+    timeout.timeout = True
+
+
 def binary_to_ascii(binary_str: str):
     """
     Transforms the given binary string to ASCII
@@ -30,7 +39,7 @@ def binary_to_ascii(binary_str: str):
     try:
         result = ""
         for ind in range(0, len(binary_str), 8):
-            binary_char =  binary_str[ind:ind + 8]
+            binary_char = binary_str[ind : ind + 8]
             ascii_code = int(binary_char, 2)
             ascii_char = format(ascii_code, "c")
             result += ascii_char
@@ -53,26 +62,31 @@ def find_byte_sequence(byte_seq: bytes, pattern: bytes, tolerance: int):
     beginning = len(byte_seq) - 5004
     items_in_pattern = len(pattern)
     if beginning < 0:
-      beginning = 0
+        beginning = 0
     for ind in range(beginning, len(byte_seq)):
-      if Levenshtein.hamming(byte_seq[ind:ind + items_in_pattern], pattern) <= tolerance:
-        return ind + items_in_pattern - 1
+        if (
+            Levenshtein.hamming(byte_seq[ind : ind + items_in_pattern], pattern)
+            <= tolerance
+        ):
+            return ind + items_in_pattern - 1
     return -1
-  
+
+
 def calculate_checksum(byte_sequence: bytes):
     # Perform 16 bits XOR checksum
     checksum = 0
     for ind in range(0, len(byte_sequence), 2):
-      byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
-      checksum ^= byte
+        byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
+        checksum ^= byte
     return checksum
-  
+
+
 def process_binary(byte_seq: bytes):
-  item = byte_seq.decode("utf-8")
-  print("string",item)
-  item = json.loads(item)
-  print("dictionary",item)
-  return item
+    item = byte_seq.decode("utf-8")
+    print("string", item)
+    item = json.loads(item)
+    print("dictionary", item)
+    return item
 
 
 def oversample(signal: bitarray, factor: int) -> bitarray:
@@ -90,7 +104,7 @@ def oversample(signal: bitarray, factor: int) -> bitarray:
                     oversampled.append(0)
                 else:
                     oversampled.append(1)
-            
+
     return oversampled
 
 
@@ -99,6 +113,7 @@ def bits_from_bytes(byte_data):
     ba = bitarray()
     ba.frombytes(byte_data)
     return ba
+
 
 def generate_variants(header_bits, max_flips=1):
     """Generate header variants with up to max_flips bit flips."""
@@ -148,6 +163,7 @@ def oversample_pattern(pattern, rate):
         result.extend([bit] * rate)
     return result
 
+
 def generate_oversampled_variants(header, rates):
     """Generate oversampled header variants for all rates and flips."""
     variant_dict = {}
@@ -156,22 +172,24 @@ def generate_oversampled_variants(header, rates):
 
     return variant_dict
 
+
 def cross_correlate_score(signal, pattern):
     """Compute max match score of pattern against signal (bitwise)."""
     plen = len(pattern)
     max_score = -1
     best_idx = 0
     for i in range(len(signal) - plen):
-        window = signal[i:i+plen]
+        window = signal[i : i + plen]
         score = sum(a == b for a, b in zip(window, pattern)) / (0.5 * plen)
         if score > max_score:
             max_score = score
             best_idx = i
     return max_score, best_idx
 
+
 def detect_oversampling(signal, header, rate_range):
     """Estimate oversampling rate and alignment from oversampled header."""
-    header_variants = generate_oversampled_variants(header, rates=range(*rate_range))
+    header_variants = generate_oversampled_variants(header, rate_range)
     best_score = -1
     best_params = (None, None, None)  # (rate, offset, score)
     print(f"variants: {len(header_variants)}")
@@ -182,16 +200,21 @@ def detect_oversampling(signal, header, rate_range):
             if score > best_score:  # Ensure it's a significant match
                 best_score = score
                 best_params = (rate, idx, best_score)
-                #print(f"New best score: {best_score}, Rate: {rate}, Offset: {idx}")
+                # print(f"New best score: {best_score}, Rate: {rate}, Offset: {idx}")
 
     return best_params  # oversampling, offset, score
-  
-def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: int, header_status: bool):\
-    # Check to exit the function, if the message is too small the header may be segmented
+
+
+def denoise_message(
+    message: bytes,
+    header: bytes,
+    tail: bytes,
+    oversampling: int,
+    header_status: bool,
+):  # Check to exit the function, if the message is too small the header may be segmented
     if len(message) < 100:
         return bitarray(), header, tail, -1, False, message
-    
-    
+
     if type(message) == bytes:
         message = bits_from_bytes(message)
     if type(header) == bytes:
@@ -199,16 +222,18 @@ def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: in
     if type(tail) == bytes:
         tail = bits_from_bytes(tail)
     bits_after_header = -1
+    bits_before_tail = -1
     # Case when we don't know the oversampling rate
     if oversampling < 0:
-        oversampling, offset, _ = detect_oversampling(message, header, rate_range=(2, 10))
+        oversampling, offset, _ = detect_oversampling(
+            message, header, rate_range=range(2, 10)
+        )
         bits_after_header = (len(message) - offset) // oversampling
         header_status = True
     # If we have found a header, we check for a tail
     if header_status:
         score = -1
         _, tail_start, score = detect_oversampling(message, tail, oversampling)
-        bits_before_tail = -1
         # If we have found a tail, we know the message is complete, we calculate the amount of bits before the tail
         # We check for a high score to ensure we have a valid tail
         if score > 1.5:
@@ -221,24 +246,29 @@ def denoise_message(message: bytes, header: bytes, tail: bytes, oversampling: in
         denoised = denoise_oversampled(message, 0, oversampling, 0)
     elif bits_before_tail > 0 and bits_after_header > 0:
         # Both header and tail in message
-        denoised = denoise_oversampled(message, offset, oversampling, bits_before_tail - (len(message) - bits_after_header))
-    elif bits_after_header > 0 and bits_before_tail < 0: 
+        denoised = denoise_oversampled(
+            message,
+            offset,
+            oversampling,
+            bits_before_tail - (len(message) - bits_after_header),
+        )
+    elif bits_after_header > 0 and bits_before_tail < 0:
         # Only header in message
         denoised = denoise_oversampled(message, offset, oversampling, bits_after_header)
     elif bits_before_tail > 0 and bits_after_header < 0:
         # Only tail in message
         denoised = denoise_oversampled(message, 0, oversampling, bits_before_tail)
-    
+
     leftover = None
     # If we have a tail, we will return the leftover message, which is the part of the message that is not denoised
     # There is also the case that in this package we are treating there is more than one message, so we call recursively until all is treated and return it all together to later processing
     if len(denoised) * oversampling < len(message):
-        remaining_message = message[len(denoised) * oversampling:]
-        aux_denoised, oversampling, header_status, leftover = denoise_message(remaining_message, header, tail, -1, False)
+        remaining_message = message[len(denoised) * oversampling :]
+        aux_denoised, oversampling, header_status, leftover = denoise_message(
+            remaining_message, header, tail, -1, False
+        )
         denoised = denoised.extend(aux_denoised)
 
-            
-    
     print("denoised bits:", denoised)
     denoised = ba2base(16, denoised)
     print("hex bits:", denoised)
