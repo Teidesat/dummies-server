@@ -167,8 +167,11 @@ def oversample_pattern(pattern, rate):
 def generate_oversampled_variants(header, rates):
     """Generate oversampled header variants for all rates and flips."""
     variant_dict = {}
-    for r in rates:
-        variant_dict[r] = [oversample_pattern(header, r)]
+    if isinstance(rates, int):
+        variant_dict = oversample_pattern(header, rates)
+    else:
+        for r in rates:
+            variant_dict[r] = [oversample_pattern(header, r)]
 
     return variant_dict
 
@@ -225,11 +228,15 @@ def denoise_message(
     bits_before_tail = -1
     # Case when we don't know the oversampling rate
     if oversampling < 0:
-        oversampling, offset, _ = detect_oversampling(
-            message, header, rate_range=range(2, 10)
+        oversampling, offset, header_score = detect_oversampling(
+            message,
+            header,
+            rate_range=range(2, 10),
         )
         bits_after_header = (len(message) - offset) // oversampling
-        header_status = True
+        if header_score > 1.5:
+            # If we have a good header score, we assume the header is present
+            header_status = True
     # If we have found a header, we check for a tail
     if header_status:
         score = -1
