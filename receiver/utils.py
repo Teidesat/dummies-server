@@ -85,6 +85,15 @@ def calculate_checksum(byte_sequence: bytes):
         checksum ^= byte
     return checksum
 
+def calculate_checksum(byte_sequence: bytes):
+    if len(byte_sequence) % 2 != 0:
+        byte_sequence += b'\x00'
+    checksum = 0
+    for ind in range(0, len(byte_sequence), 2):
+        byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
+        checksum ^= byte
+    return checksum
+
 
 def process_binary(byte_seq: bytes):
     item = byte_seq.decode("utf-8")
