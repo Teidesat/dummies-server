@@ -76,24 +76,16 @@ def find_byte_sequence(byte_seq: bytes, pattern: bytes, tolerance: int):
             return ind + items_in_pattern - 1
     return -1
 
-
 def calculate_checksum(byte_sequence: bytes):
+    # If the lenght of the message is odd, add a padding byte to avoid errors in the checksum calculation
+    if len(byte_sequence) % 2 != 0:
+        byte_sequence += b'\x00'
     # Perform 16 bits XOR checksum
     checksum = 0
     for ind in range(0, len(byte_sequence), 2):
         byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
         checksum ^= byte
     return checksum
-
-def calculate_checksum(byte_sequence: bytes):
-    if len(byte_sequence) % 2 != 0:
-        byte_sequence += b'\x00'
-    checksum = 0
-    for ind in range(0, len(byte_sequence), 2):
-        byte = byte_sequence[ind + 1] << 8 | byte_sequence[ind]
-        checksum ^= byte
-    return checksum
-
 
 def process_binary(byte_seq: bytes):
     item = byte_seq.decode("utf-8")
