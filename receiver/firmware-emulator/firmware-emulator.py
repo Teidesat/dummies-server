@@ -66,7 +66,8 @@ def add_message(sequence: PackageSequence):
     header = bits_from_bytes(b"TEIDESAT")
     tail = bits_from_bytes(b"TASEDIET")
     message = bits_from_bytes(message)
-    message_with_header_tail = oversample(header + message + tail, 5)
+    # No oversampling for now (NTH)
+    message_with_header_tail = oversample(header + message + tail, 1)
     print(
         f"The message's size is {len(message)} bytes, {len(message_with_header_tail)} bytes with header/tail"
     )
