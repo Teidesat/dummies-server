@@ -10,6 +10,11 @@ from itertools import combinations
 from bitarray.util import ba2base, base2ba
 import random
 
+"""
+Flag to enable the detection of the oversampling rate. False by default, as it is not working for the moment
+"""
+
+ENABLE_OVERSAMPLING_DETECTION = False
 
 class TimeOutWrapper:
     """
@@ -223,56 +228,114 @@ def denoise_message(
     bits_before_tail = -1
     # Case when we don't know the oversampling rate
     if oversampling < 0:
-        oversampling, offset, header_score = detect_oversampling(
-            message,
-            header,
-            rate_range=range(2, 10),
-        )
-        bits_after_header = (len(message) - offset) // oversampling
-        if header_score > 1.5:
-            # If we have a good header score, we assume the header is present
-            header_status = True
+        if ENABLE_OVERSAMPLING_DETECTION:
+            oversampling, offset, header_score = detect_oversampling(
+                message,
+                header,
+                rate_range=range(2, 10),
+            )
+            bits_after_header = (len(message) - offset) // oversampling
+            if header_score > 1.5:
+                # If we have a good header score, we assume the header is present
+                header_status = True
+        else:
+            # Assume rate is 1 (raw data) and find header directly
+            oversampling = 1
+            offset = find_byte_sequence(message.tobytes(), header.tobytes(), 5)
+            if offset != -1: 
+                # Offset points to the end of the header, we need to adjust
+                offset = (offset + 1) * 8 # Convert bytes index to bit index
+                header_score = 2.0
+                header_status = True
+                bits_after_header = len(message) - offset
+            else: # If the header is not found, we try to find the tail, assuming the message has already started in another package
+                offset = 0
+                header_score = 0
+                header_status = False
+                bits_after_header = -1
     # If we have found a header, we check for a tail
     if header_status:
-        score = -1
-        _, tail_start, score = detect_oversampling(message, tail, oversampling)
-        # If we have found a tail, we know the message is complete, we calculate the amount of bits before the tail
-        # We check for a high score to ensure we have a valid tail
-        if score > 1.5:
-            header_status = False
-            # This value will just be from the beginning of the message to the tail start
-            bits_before_tail = tail_start // oversampling
+        if ENABLE_OVERSAMPLING_DETECTION:
+            score = -1
+            _, tail_start, score = detect_oversampling(message, tail, oversampling)
+            # If we have found a tail, we know the message is complete, we calculate the amount of bits before the tail
+            # We check for a high score to ensure we have a valid tail
+            if score > 1.5:
+                header_status = False
+                # This value will just be from the beginning of the message to the tail start
+                bits_before_tail = tail_start // oversampling
+        else:
+            # Find the tail directly, assuming the oversampling is 1
+            tail_idx = find_byte_sequence(message.tobytes(), tail.tobytes(), 5)
+            if tail_idx != -1:
+                score = 2.0
+                header_status = False
+                tail_start = (tail_idx - len(tail.tobytes()) + 1) * 8 # Start bit of tail
+                bits_before_tail = tail_start // oversampling
+            else:
+                score = 0
+                tail_start = -1
     # We have a few different cases, header and tail in message, only header in message, only tail in message, no header or tail in message
-    if bits_after_header < 0 and bits_before_tail < 0:
-        # No header or tail, but we should have oversampling
-        denoised = denoise_oversampled(message, 0, oversampling, 0)
-    elif bits_before_tail > 0 and bits_after_header > 0:
-        # Both header and tail in message
-        denoised = denoise_oversampled(
-            message,
-            offset,
-            oversampling,
-            bits_before_tail - (len(message) - bits_after_header),
-        )
-    elif bits_after_header > 0 and bits_before_tail < 0:
-        # Only header in message
-        denoised = denoise_oversampled(message, offset, oversampling, bits_after_header)
-    elif bits_before_tail > 0 and bits_after_header < 0:
-        # Only tail in message
-        denoised = denoise_oversampled(message, 0, oversampling, bits_before_tail)
-
+    if ENABLE_OVERSAMPLING_DETECTION:
+        if bits_after_header < 0 and bits_before_tail < 0:
+            # No header or tail, but we should have oversampling
+            denoised = denoise_oversampled(message, 0, oversampling, 0)
+        elif bits_before_tail > 0 and bits_after_header > 0:
+            # Both header and tail in message
+            denoised = denoise_oversampled(
+                message,
+                offset,
+                oversampling,
+                bits_before_tail - (len(message) - bits_after_header),
+            )
+        elif bits_after_header > 0 and bits_before_tail < 0:
+            # Only header in message
+            denoised = denoise_oversampled(message, offset, oversampling, bits_after_header)
+        elif bits_before_tail > 0 and bits_after_header < 0:
+            # Only tail in message
+            denoised = denoise_oversampled(message, 0, oversampling, bits_before_tail)
+    else:
+        # Just slice the message directly, no denoising
+        if bits_after_header > 0 and bits_before_tail > 0:
+            denoised = message[offset:tail_start]
+        elif bits_after_header > 0:
+            denoised = message[offset:]
+        elif bits_before_tail > 0:
+            denoised = message[:tail_start]
+        else:
+            denoised = bitarray()
     leftover = None
     # If we have a tail, we will return the leftover message, which is the part of the message that is not denoised
     # There is also the case that in this package we are treating there is more than one message, so we call recursively until all is treated and return it all together to later processing
-    if len(denoised) * oversampling < len(message):
-        remaining_message = message[len(denoised) * oversampling :]
-        aux_denoised, oversampling, header_status, leftover = denoise_message(
+    if ENABLE_OVERSAMPLING_DETECTION:
+        step = len(denoised) * oversampling
+    else:
+        # In bypass, the step is just the message end + 64 bits of the tail
+        step = bits_before_tail + 64 if bits_before_tail > 0 else -1
+    if 0 < step < len(message):
+        remaining_message = message[step:]
+        aux_denoised, _, _, leftover = denoise_message(
             remaining_message, header, tail, -1, False
         )
-        denoised = denoised.extend(aux_denoised)
+        if aux_denoised:
+            if isinstance(aux_denoised, bytes):
+                denoised.frombytes(aux_denoised)
+            else:
+                denoised.extend(aux_denoised)
 
     print("denoised bits:", denoised)
-    denoised = ba2base(16, denoised)
-    print("hex bits:", denoised)
-    print("Recovered bits:", bytearray.fromhex(denoised).decode())
+    # Check if we actually have bits to convert to avoid crashes
+    if len(denoised) > 0:
+        denoised_bytes = denoised.tobytes()
+        hex_str = ba2base(16, denoised)
+        print("hex bits:", hex_str)
+        try:
+            print("Recovered bits:", bytearray.fromhex(hex_str).decode())
+        except Exception as e:
+            print("Could not decode to string yet:", e)
+            
+        denoised = denoised_bytes
+    else:
+        denoised = b"" 
+
     return denoised, oversampling, header_status, leftover
