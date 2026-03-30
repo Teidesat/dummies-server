@@ -5,13 +5,18 @@ Program to handle the communication between the transmitter's GUI and the transm
  firmware by using a simple HTTP API server during the optical communications test.
 """
 import json
+import os
 
 from flask import Flask, request
 from requests import post as post_request
 from server_data import ServerData
 
-# Set the debug mode to True to print logs in the console
-DEBUG_MODE = True
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+SERVER_HOST = os.getenv("TRANSMITTER_SERVER_HOST")
+SERVER_PORT = int(os.getenv("TRANSMITTER_SERVER_PORT", "5000"))
+
+if SERVER_HOST is None:
+    raise ValueError("TRANSMITTER_SERVER_HOST is not set")
 
 # Initialize the Flask app
 app = Flask(__name__)
@@ -247,4 +252,4 @@ def retrieve_firmware_state():
     return SERVER_DATA.return_firmware_state()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=DEBUG_MODE)
+    app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)

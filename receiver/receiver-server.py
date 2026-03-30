@@ -4,6 +4,7 @@
 Program to handle the communication between the receiver's GUI and the receiver's
  firmware by using a simple HTTP API server during the optical communications test.
 """
+import os
 from threading import Timer
 
 from flask import Flask, request, jsonify
@@ -13,7 +14,12 @@ from utils import *
 import Levenshtein
 
 # Set the debug mode to True to print logs in the console
-DEBUG_MODE = True
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+SERVER_HOST = os.getenv("RECEIVER_SERVER_HOST")
+SERVER_PORT = int(os.getenv("RECEIVER_SERVER_PORT", "5001"))
+
+if SERVER_HOST is None:
+    raise ValueError("RECEIVER_SERVER_HOST is not set")
 
 # Initialize the Flask app
 app = Flask(__name__)
@@ -211,4 +217,4 @@ def get_message():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
+    app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)
