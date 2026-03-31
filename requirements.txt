@@ -3,3 +3,4 @@ requests==2.32.3
 python-dotenv==1.0.0
 Levenshtein
 bitarray==3.3.2
+pytest
