@@ -129,8 +129,18 @@ def receive_data():
 @app.route("/receive_binary", methods=["POST"])
 def receive_binary():
     """
-    Receives the binary data from the firmware and processes it to form a message/experiment. Adds it to the buffer for the experiments
+    Simplified version of the function that receives everything in raw
     """
+    global message
+    raw_data = request.get_data(as_text=False)
+    raw_binary_string = ''.join(format(byte, '08b') for byte in raw_data)
+    message = raw_binary_string
+    print("Raw binary bypass:", raw_binary_string[:100], "...")
+    return "OK", 200
+""" def receive_binary():
+
+    Receives the binary data from the firmware and processes it to form a message/experiment. Adds it to the buffer for the experiments
+    
     header = b"TEIDESAT"
     tail = b"TASEDIET"
     tolerance = 5
@@ -176,7 +186,7 @@ def receive_binary():
                 )
                 BINARY_TEMP = BINARY_TEMP[TAIL_IND + 1 :]
                 SEARCHING_FOR_HEAD = True
-    return "OK", 200
+    return "OK", 200 """
 
 
 @app.route("/experiment", methods=["GET"])

@@ -48,7 +48,7 @@ class Package:
             tag = "B"  # Default, B (Bytes)
         self.percentage_package_tag.append((percentage_of_package, tag[0]))
         self.bytes += next_bytes
-        return bytes_to_add[empty_space + 1 :]
+        return bytes_to_add[empty_space:]
 
     def get_empty_space(self):
         """

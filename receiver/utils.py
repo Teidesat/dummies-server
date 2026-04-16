@@ -68,11 +68,12 @@ def find_byte_sequence(byte_seq: bytes, pattern: bytes, tolerance: int):
     items_in_pattern = len(pattern)
     if beginning < 0:
         beginning = 0
-    for ind in range(beginning, len(byte_seq)):
-        if (
-            Levenshtein.hamming(byte_seq[ind : ind + items_in_pattern], pattern)
-            <= tolerance
-        ):
+    last_start = len(byte_seq) - items_in_pattern
+    if last_start < beginning:
+        return -1
+
+    for ind in range(beginning, last_start + 1):
+        if Levenshtein.hamming(byte_seq[ind : ind + items_in_pattern], pattern) <= tolerance:
             return ind + items_in_pattern - 1
     return -1
 
@@ -217,7 +218,8 @@ def denoise_message(
     header_status: bool,
 ):  # Check to exit the function, if the message is too small the header may be segmented
     if len(message) < 100:
-        return bitarray(), header, tail, -1, False, message
+        # Keep small chunks as leftover so caller can prepend them to the next package.
+        return b"", oversampling, header_status, message
 
     if type(message) == bytes:
         message = bits_from_bytes(message)
