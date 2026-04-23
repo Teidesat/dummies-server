@@ -29,7 +29,9 @@ class ExperimentBuffer:
 
 
   def insert(self, data):
-    message = "TEIDESAT" + data["message"] + "TASEDIET"
+    TEIDESAT_BIN = "0101010001000101010010010100010001000101010100110100000101010100"
+    TASEDIET_BIN = "0101010001000001010100110100010101000100010010010100010101010100"
+    message = TEIDESAT_BIN + data["message"] + TASEDIET_BIN
     settings = data["settings"]
     experiment_id = data["experiment_id"]
     stripped_experiment_id = experiment_id[:experiment_id.find("M")]
