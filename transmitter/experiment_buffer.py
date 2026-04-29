@@ -29,7 +29,9 @@ class ExperimentBuffer:
 
 
   def insert(self, data):
-    message = "TEIDESAT" + data["message"] + "TASEDIET"
+    TEIDESAT_BIN = "0101010001000101010010010100010001000101010100110100000101010100"
+    TASEDIET_BIN = "0101010001000001010100110100010101000100010010010100010101010100"
+    message = TEIDESAT_BIN + data["message"] + TASEDIET_BIN
     settings = data["settings"]
     experiment_id = data["experiment_id"]
     stripped_experiment_id = experiment_id[:experiment_id.find("M")]
@@ -63,9 +65,16 @@ class ExperimentBuffer:
     """
     Returns current status in JSON format
     """
-    data = {
-      "experiment_id": self.experiments[0][0],
-      "experiments": len(self.experiments),
-      "messages": len(self.experiments[0][2]) - self.message_ind
-    }
+    if len(self.experiments) == 0:
+      data = {
+      "experiment_id": "",
+      "experiments": 0,
+      "messages": 0
+      }
+    else : 
+      data = {
+        "experiment_id": self.experiments[0][0],
+        "experiments": len(self.experiments),
+        "messages": len(self.experiments[0][2]) - self.message_ind
+      }
     return json.dumps(data)
