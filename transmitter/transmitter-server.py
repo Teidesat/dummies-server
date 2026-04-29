@@ -10,6 +10,7 @@ import os
 from flask import Flask, request
 from requests import post as post_request
 from server_data import ServerData
+from csv_store import TransmitterCSVStore, default_transmitter_csv_path
 
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 SERVER_HOST = os.getenv("TRANSMITTER_SERVER_HOST")
@@ -24,16 +25,7 @@ app = Flask(__name__)
 # Variable to control the state of the communication
 SERVER_DATA = ServerData()
 
-# Initialize the global variables with default values
-experiment_id = "CO_Dd-Aa-Ii-Ff-Ll-Mm"
-message = ""
-settings = {
-    "dummy_distance": 0,
-    "transmitter_angle": 0,
-    "led_intensity": 0,
-    "blinking_frequency": 0,
-    "messages_batch": 0,
-}
+DATA_STORE = TransmitterCSVStore(default_transmitter_csv_path())
 
 MESSAGES = []
 FREQUENCIES = []
@@ -50,24 +42,16 @@ def send_message():
     Function to receive a message from the transmitter GUI to start the optical
     communications.
 
-    Note: This function produces side effects by changing the global variables
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Persists the experiment data and inserts it into the communication buffer.
     """
 
     if request.method == "POST":
-        global experiment_id
-        global message
-        global settings
-
         data = request.json
-
-        experiment_id = data["experiment_id"]
-        message = data["message"]
-        settings = data["settings"]
+        DATA_STORE.append_experiment(data)
 
         print(
-            f"Received experiment ID '{experiment_id}' "
-            + f"with message '{message}' and settings '{settings}'",
+            f"Received experiment ID '{data['experiment_id']}' "
+            + f"with message '{data['message']}' and settings '{data['settings']}'",
             flush=DEBUG_MODE,
         )
         # post_request("http://receiver-server:5001/send_data",
@@ -85,8 +69,7 @@ def get_message():
     """
     Function to send the message to the transmitter ESP32.
 
-    Note: This function obtains the data from a global variable.
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Retrieves next encoded message from the communication buffer.
     """
 
     if request.method == "GET":
@@ -112,8 +95,10 @@ def get_dummy_distance():
     """
 
     if request.method == "GET":
-        global settings
-        distance = settings["dummy_distance"]
+        latest = DATA_STORE.get_latest_experiment()
+        if latest is None:
+            return ""
+        distance = latest["dummy_distance"]
 
         print(f"Sending dummy distance value: {distance}", flush=DEBUG_MODE)
         return str(distance)
@@ -126,13 +111,14 @@ def get_transmitter_angle():
     """
     Function to send the angle of the transmitter dummy to the transmitter ESP32.
 
-    Note: This function obtains the data from a global variable.
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Returns the latest persisted transmitter angle parameter.
     """
 
     if request.method == "GET":
-        global settings
-        angle = settings["transmitter_angle"]
+        latest = DATA_STORE.get_latest_experiment()
+        if latest is None:
+            return ""
+        angle = latest["transmitter_angle"]
 
         print(f"Sending transmitter angle value: {angle}", flush=DEBUG_MODE)
         return str(angle)
@@ -145,13 +131,14 @@ def get_led_intensity():
     """
     Function to send the LEDs intensity to the transmitter ESP32.
 
-    Note: This function obtains the data from a global variable.
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Returns the latest persisted LED intensity parameter.
     """
 
     if request.method == "GET":
-        global settings
-        intensity = settings["led_intensity"]
+        latest = DATA_STORE.get_latest_experiment()
+        if latest is None:
+            return ""
+        intensity = latest["led_intensity"]
 
         print(f"Sending LEDs intensity value: {intensity}", flush=DEBUG_MODE)
         return str(intensity)
@@ -164,8 +151,7 @@ def get_blinking_frequency():
     """
     Function to send the blinking frequency to the transmitter ESP32.
 
-    Note: This function obtains the data from a global variable.
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Retrieves the frequency for the current experiment from the buffer.
     """
 
     if request.method == "GET":
@@ -189,8 +175,10 @@ def get_messages_batch():
     """
 
     if request.method == "GET":
-        global settings
-        batch = settings["messages_batch"]
+        latest = DATA_STORE.get_latest_experiment()
+        if latest is None:
+            return ""
+        batch = latest["messages_batch"]
 
         print(f"Sending messages batch value: {batch}", flush=DEBUG_MODE)
         return str(batch)
@@ -203,12 +191,14 @@ def get_experiment_id():
     """
     Function to send the experiment ID to the transmitter ESP32.
 
-    Note: This function obtains the data from a global variable.
-    # ToDo: Analyze if there is a better way to handle the received data.
+    Returns the latest persisted experiment ID.
     """
 
     if request.method == "GET":
-        global experiment_id
+        latest = DATA_STORE.get_latest_experiment()
+        if latest is None:
+            return ""
+        experiment_id = latest["experiment_id"]
 
         print(f"Sending experiment ID value: {experiment_id}", flush=DEBUG_MODE)
         return str(experiment_id)

@@ -3,10 +3,13 @@ import os
 import sys
 from pathlib import Path
 import importlib.util
+import tempfile
 
 os.environ["TRANSMITTER_SERVER_HOST"] = "0.0.0.0"
 os.environ["TRANSMITTER_SERVER_PORT"] = "5000"
 os.environ["DEBUG_MODE"] = "true"
+TEMP_DIR = tempfile.mkdtemp()
+os.environ["TRANSMITTER_DATA_CSV"] = str(Path(TEMP_DIR) / "transmitter_data.csv")
 
 transmitter_dir = Path(__file__).resolve().parents[1]/"transmitter"
 sys.path.insert(0, str(transmitter_dir))
@@ -26,7 +29,7 @@ def test_hello_world():  # Test the root endpoint of the transmitter server
     assert response.data == b"<p>Hello world from the transmitter server!</p>"
 
 
-def test_start_optical_communications_updates_globals(): # Test the /start_optical_communications endpoint to ensure it updates the global variables correctly
+def test_start_optical_communications_persists_data():
     client = app.test_client()
 
     payload = {
@@ -41,10 +44,20 @@ def test_start_optical_communications_updates_globals(): # Test the /start_optic
         },
     }
 
-    response = client.post("/start_optical_communications", json=payload)  # Send a POST request to the /start_optical_communications endpoint with a sample payload
+    response = client.post("/start_optical_communications", json=payload)
 
     assert response.status_code == 200
-    assert transmitter_server.experiment_id == payload["experiment_id"]
-    assert transmitter_server.message == payload["message"]
-    assert transmitter_server.settings == payload["settings"]
+    assert client.get("/get_experiment_id").data.decode() == payload["experiment_id"]
+    assert client.get("/get_dummy_distance").data.decode() == str(
+        payload["settings"]["dummy_distance"]
+    )
+    assert client.get("/get_transmitter_angle").data.decode() == str(
+        payload["settings"]["transmitter_angle"]
+    )
+    assert client.get("/get_led_intensity").data.decode() == str(
+        payload["settings"]["led_intensity"]
+    )
+    assert client.get("/get_messages_batch").data.decode() == str(
+        payload["settings"]["messages_batch"]
+    )
 

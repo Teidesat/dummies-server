@@ -8,13 +8,14 @@ The system follows a microservices architecture built with **Flask**, divided in
 ### Transmitter server
 Acts as the **"boss"** for the transmitting ESP32. 
 - Receives the experiment parameters (message, frequency, distance) from the GUI via HTTP POST.
-- Holds these instructions in memory. The physical ESP32 continuously polls this server (`GET /firmware_state`) to know when to start transmitting light pulses.
+- Persists each instruction in a CSV file (`transmitter/data/transmitter_data.csv` by default). The physical ESP32 continuously polls this server (`GET /firmware_state`) to know when to start transmitting light pulses.
 
 ### Receiver server
 Acts as the **data aggregator** for the receiving ESP32.
 - Receives the raw, noisy binary stream of light pulses from the ESP32.
 - Parses the binary stream, searching for the official headers (`TEIDESAT`) and tails (`TASEDIET`), and applies noise reduction.
 - Groups the decoded messages into `Experiment` objects and queues them in a buffer for the GUI to fetch.
+- Stores the latest received payloads in CSV (`receiver/data/receiver_data.csv` by default) for lightweight traceability during tests.
 
 ### Firmware Emulator
 Located in [receiver/firmware-emulator/](receiver/firmware-emulator/firmware-emulator.py), this CLI tool is used for **software testing** when the physical ESP32 boards are **unavailable**. It generates fake optical packages, injects intentional noise/bit-flips, and sends them to the receiver server to validate the decoding algorithms.

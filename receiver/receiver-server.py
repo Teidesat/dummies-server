@@ -10,6 +10,7 @@ from threading import Timer
 from flask import Flask, request, jsonify
 from experiment import Experiment
 from utils import *
+from csv_store import ReceiverCSVStore, default_receiver_csv_path
 
 import Levenshtein
 
@@ -26,7 +27,6 @@ app = Flask(__name__)
 
 # Initialize the global variables with default values
 experiment_id = "CO_Dd-Aa-Ii-Ff-Ll-Mm"
-message = ""
 settings = {
     "dummy_distance": 0,
     "transmitter_angle": 0,
@@ -45,6 +45,9 @@ EXP_BUFFER: list[Experiment] = []
 # The experiment that is currently forming.
 FORMING_EXPERIMENT: Experiment = Experiment(None)
 
+# CSV persistence for received messages
+RECEIVER_STORE = ReceiverCSVStore(default_receiver_csv_path())
+
 # Timeout to form experiments
 TIMEOUT = 3
 LAST_EXPERIMENT_TIMER: Timer = Timer(TIMEOUT, lambda x: x)
@@ -60,12 +63,12 @@ def process_message(data):
     """
     Function to process the message received from the firmware and add it to the buffer.
     """
-    global message
     global FORMING_EXPERIMENT
     global LAST_EXPERIMENT_TIMER
     global TIMED_OUT
     message = data["message"]
     experiment_id = data["experiment_id"]
+    RECEIVER_STORE.append_message(experiment_id, message, "json")
     stripped_experiment_id = experiment_id[: experiment_id.find("M")]
     print(data)
     if FORMING_EXPERIMENT.id is None:  # First run
@@ -131,10 +134,9 @@ def receive_binary():
     """
     Simplified version of the function that receives everything in raw
     """
-    global message
     raw_data = request.get_data(as_text=False)
     raw_binary_string = ''.join(format(byte, '08b') for byte in raw_data)
-    message = raw_binary_string
+    RECEIVER_STORE.append_message("RAW_BINARY", raw_binary_string, "binary")
     print("Raw binary bypass:", raw_binary_string[:100], "...")
     return "OK", 200
 """ def receive_binary():
@@ -223,7 +225,7 @@ def get_message():
     Returns a single message
     """
     if request.method == "GET":
-        return message
+        return RECEIVER_STORE.get_latest_message()
 
 
 if __name__ == "__main__":
