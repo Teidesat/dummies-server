@@ -11,14 +11,17 @@ Acts as the **"boss"** for the transmitting ESP32.
 - Persists each instruction in a CSV file (`transmitter/data/transmitter_data.csv` by default). The physical ESP32 continuously polls this server (`GET /firmware_state`) to know when to start transmitting light pulses.
 
 ### Receiver server
-Acts as the **data aggregator** for the receiving ESP32.
-- Receives the raw, noisy binary stream of light pulses from the ESP32.
+Acts as the **data aggregator** for the receiving hardware connected to the Raspberry Pi.
+- Receives the raw, noisy binary stream of light pulses from the receiver-side hardware or its emulator.
 - Parses the binary stream, searching for the official headers (`TEIDESAT`) and tails (`TASEDIET`), and applies noise reduction.
 - Groups the decoded messages into `Experiment` objects and queues them in a buffer for the GUI to fetch.
 - Stores the latest received payloads in CSV (`receiver/data/receiver_data.csv` by default) for lightweight traceability during tests.
 
+### Raspberry Pi bridge
+If the receiver hardware is connected directly to the Raspberry Pi, use [receiver/pi_bridge.py](receiver/pi_bridge.py) to read the local serial link and forward each binary frame to the receiver server.
+
 ### Firmware Emulator
-Located in [receiver/firmware-emulator/](receiver/firmware-emulator/firmware-emulator.py), this CLI tool is used for **software testing** when the physical ESP32 boards are **unavailable**. It generates fake optical packages, injects intentional noise/bit-flips, and sends them to the receiver server to validate the decoding algorithms.
+Located in [receiver/firmware-emulator/](receiver/firmware-emulator/firmware-emulator.py), this CLI tool is used for **software testing** when the physical receiver hardware is **unavailable**. It generates fake optical packages, injects intentional noise/bit-flips, and sends them to the receiver server to validate the decoding algorithms.
 
 ## Environment configuration
 
@@ -51,12 +54,14 @@ While Docker is running, open a web browser and navigate to the root endpoints t
 - **Receiver:** [http://localhost:5001](http://localhost:5001) (Should say `"Hello world from the receiver server!"`)
 
 ### 3. Check the transmitter state
-The physical ESP32 continuously polls the backend to determine its operational state. This state can be verified manually:
+The physical transmitter continues polling the backend to determine its operational state. This state can be verified manually:
 
 - Go to: [http://localhost:5000/firmware_state](http://localhost:5000/firmware_state) (It should return **`Idle`**. When an experiment actually starts, this will change to **`Sending`**)
 
 ### 4. Hardware simulation
-If physical microcontrollers are unavailable, the included **Python emulator** can be used. It simulates the receiving ESP32 by reading a JSON payload, converting it into a raw binary stream with the `TEIDESAT` and `TASEDIET` headers, and sending it to the Receiver Server.
+If physical receiver hardware is unavailable, the included **Python emulator** can be used. It simulates the receiver-side data source by reading a JSON payload, converting it into a raw binary stream with the `TEIDESAT` and `TASEDIET` headers, and sending it to the Receiver Server.
+
+If the receiver hardware is connected directly to the Raspberry Pi, the bridge reads the local serial stream and posts it to `http://127.0.0.1:5001/receive_binary`.
 
 - **Note:** Ensure the Docker containers from step 1 are actively running before proceeding, otherwise the connection will be refused.
 

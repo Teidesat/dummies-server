@@ -4,3 +4,4 @@ python-dotenv==1.0.0
 Levenshtein
 bitarray==3.3.2
 pytest
+pyserial==3.5
