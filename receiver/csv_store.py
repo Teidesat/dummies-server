@@ -50,5 +50,13 @@ class ReceiverCSVStore:
 def default_receiver_csv_path() -> str:
     return os.getenv(
         "RECEIVER_DATA_CSV",
-        os.path.join(os.path.dirname(__file__), "data", "receiver_data.csv"),
+        os.path.join(
+            os.path.dirname(__file__),
+            "data",
+            (
+                "receiver-data_"
+                + datetime.now(timezone.utc).isoformat()
+                + ".csv"
+            )
+        ),
     )
