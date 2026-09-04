@@ -2,6 +2,7 @@ flask==3.1.0
 requests==2.32.3
 python-dotenv==1.0.0
 Levenshtein
+RPi.GPIO
 bitarray==3.3.2
 pytest
 pyserial==3.5
